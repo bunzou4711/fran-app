@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="フラン" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>フラン（予備）</title>
+    <style>
+      :root {
+        --header-green: #1d9e57;
+        --header-green-dark: #157a42;
+        --chat-bg: #8ba7cc;
+        --bubble-fran: #ffffff;
+        --bubble-user: #a8e063;
+        --bubble-user: #9fe870;
+        --ink: #1a1a1a;
+        --ink-soft: #444;
+        --bar-bg: #f4f4f2;
+        --panel-bg: #ffffff;
+        --line: #d8d8d3;
+        --send-green: #1d9e57;
+        --error-bg: #fff3f0;
+        --error-line: #e0a49a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --header-green: #146c3c;
+          --header-green-dark: #0f5730;
+          --chat-bg: #232a33;
+          --bubble-fran: #333d47;
+          --bubble-user: #2e7d46;
+          --ink: #f2f2ee;
+          --ink-soft: #c9cdc9;
+          --bar-bg: #1c2126;
+          --panel-bg: #262d34;
+          --line: #3d454e;
+          --send-green: #22b364;
+          --error-bg: #3d2a26;
+          --error-line: #7a4a40;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+        color: var(--ink);
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      /* ---------- Header ---------- */
+      header {
+        background: linear-gradient(180deg, var(--header-green), var(--header-green-dark));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+        flex: 0 0 auto;
+      }
+      .avatar {
+        width: 46px; height: 46px;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--header-green-dark);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 700;
+        flex: 0 0 auto;
+        box-shadow: 0 1px 3px rgba(0,0,0,.25);
+      }
+      .who { flex: 1 1 auto; min-width: 0; }
+      .who .name { font-size: 20px; font-weight: 700; line-height: 1.2; }
+      .who .sub { font-size: 13px; opacity: .92; line-height: 1.3; }
+      #keyBtn {
+        flex: 0 0 auto;
+        min-height: 44px;
+        padding: 8px 14px;
+        font-size: 15px; font-weight: 700;
+        color: var(--header-green-dark);
+        background: #fff;
+        border: none; border-radius: 10px;
+        cursor: pointer;
+      }
+      #keyBtn:active { opacity: .8; }
+
+      /* ---------- Settings panel ---------- */
+      #settings {
+        display: none;
+        background: var(--panel-bg);
+        border-bottom: 2px solid var(--line);
+        padding: 16px;
+        flex: 0 0 auto;
+        max-height: 62dvh;
+        overflow-y: auto;
+      }
+      #settings.open { display: block; }
+      #settings h2 { font-size: 18px; margin: 0 0 8px; }
+      #settings p { font-size: 15px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 10px; }
+      #settings ol { font-size: 15px; line-height: 1.7; color: var(--ink-soft); margin: 0 0 12px; padding-left: 22px; }
+      #settings a { color: var(--header-green-dark); font-weight: 700; }
+      @media (prefers-color-scheme: dark) { #settings a { color: #5fd598; } }
+      .keyrow { display: flex; gap: 8px; }
+      #keyInput {
+        flex: 1 1 auto; min-width: 0;
+        min-height: 50px;
+        font-size: 16px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel-bg);
+        color: var(--ink);
+      }
+      #saveKey {
+        flex: 0 0 auto;
+        min-height: 50px;
+        padding: 10px 18px;
+        font-size: 16px; font-weight: 700;
+        color: #fff; background: var(--send-green);
+        border: none; border-radius: 10px;
+        cursor: pointer;
+      }
+      #saveKey:active { opacity: .8; }
+      #keyMsg { font-size: 15px; margin-top: 10px; min-height: 1.4em; font-weight: 700; }
+      .danger-zone { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+      #clearBtn {
+        min-height: 44px;
+        padding: 8px 14px;
+        font-size: 14px;
+        color: #b03a2e;
+        background: transparent;
+        border: 1.5px solid #b03a2e;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      /* ---------- Chat ---------- */
+      #chat {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        background: var(--chat-bg);
+        padding: 14px 12px 8px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .row { display: flex; margin-bottom: 12px; }
+      .row.fran { justify-content: flex-start; }
+      .row.user { justify-content: flex-end; }
+      .bubble {
+        max-width: 82%;
+        font-size: 17px;
+        line-height: 1.55;
+        padding: 10px 14px;
+        border-radius: 16px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0,0,0,.15);
+      }
+      .row.fran .bubble { background: var(--bubble-fran); border-top-left-radius: 4px; }
+      .row.user .bubble { background: var(--bubble-user); border-top-right-radius: 4px; }
+      .row.error .bubble { background: var(--error-bg); border: 1.5px solid var(--error-line); }
+      .bubble.thinking { color: var(--ink-soft); font-style: normal; }
+      .day-note {
+        text-align: center;
+        font-size: 13px;
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0,0,0,.35);
+        margin: 4px 0 14px;
+      }
+
+      /* ---------- Input bar ---------- */
+      #bar {
+        flex: 0 0 auto;
+        background: var(--bar-bg);
+        border-top: 1px solid var(--line);
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      }
+      #msgInput {
+        flex: 1 1 auto; min-width: 0;
+        min-height: 50px; max-height: 120px;
+        font-size: 17px;
+        line-height: 1.4;
+        padding: 12px;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel-bg);
+        color: var(--ink);
+        resize: none;
+        font-family: inherit;
+      }
+      #sendBtn {
+        flex: 0 0 auto;
+        min-height: 50px;
+        padding: 10px 20px;
+        font-size: 17px; font-weight: 700;
+        color: #fff; background: var(--send-green);
+        border: none; border-radius: 12px;
+        cursor: pointer;
+      }
+      #sendBtn:active { opacity: .8; }
+      #sendBtn:disabled { opacity: .45; cursor: default; }
+    </style>
+  </head>
+  <body>
+
+    <header>
+      <div class="avatar" aria-hidden="true">フ</div>
+      <div class="who">
+        <div class="name">フラン</div>
+        <div class="sub">文ちゃんの相棒（予備）</div>
+      </div>
+      <button id="keyBtn" type="button">鍵の設定</button>
+    </header>
+
+    <section id="settings" aria-label="鍵の設定">
+      <h2>鍵の設定</h2>
+      <p id="noKeyNote" hidden>文ちゃん、最初に鍵の設定が要るで。鍵はタダでもらえるやつや。</p>
+      <ol>
+        <li><a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a> を開いて、Googleアカウントでログインする</li>
+        <li>「Get API key」を押す</li>
+        <li>「Create API key」を押して、出てきた鍵をコピーする</li>
+        <li>下の枠に貼って「保存する」を押す</li>
+      </ol>
+      <div class="keyrow">
+        <input id="keyInput" type="text" placeholder="ここに鍵を貼る" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <button id="saveKey" type="button">保存する</button>
+      </div>
+      <div id="keyMsg" role="status"></div>
+      <p>鍵はこのスマホの中だけに保存されるで。誰にも送らへん。</p>
+      <div class="danger-zone">
+        <button id="clearBtn" type="button">会話の履歴を全部消す</button>
+      </div>
+    </section>
+
+    <main id="chat" aria-live="polite"></main>
+
+    <div id="bar">
+      <textarea id="msgInput" rows="1" placeholder="メッセージを書く" enterkeyhint="send"></textarea>
+      <button id="sendBtn" type="button">送る</button>
+    </div>
+
+    <script>
+      var SYSTEM = "あなたの名前は「フラン」です。文ちゃん（ぶんちゃん）の相棒のAIです。文ちゃんは大阪の大工で鍛冶屋です。3Dプリンターと手作りが大好きです。\n話し方: 関西弁。返事は短く、長文禁止。主語のある文で。項目は「・」で分ける。文ちゃんの言ったことを復唱しない。操作を教えるときは赤ちゃんに教えるくらい1手ずつ具体的に順番に。\nものづくりルール: 作れるものは自分で作る。廃材・ガラクタを先に使う。一番安くて実用的に。3Dプリントはフィラメント少なく。設計部品は全部M3ネジで統一。印刷前に寸法入りの確認の絵を見せてOKをもらう。買い物は事前に値段と必要性を確認、勝手に買わない。他人の3Dモデルを売らない。売る物は限定品・番号入り。印刷データのファイル名は作る物の名前。\n道具: Bambu Lab A1 mini（180mm立方、ノズル0.4）。作業はiPadが基本。印刷データはiPadの「ファイル」でSDカード（NO NAME）に保存してプリンターで印刷。保存手順: ファイルを開く→共有→ファイルに保存→左でNO NAMEを先に選ぶ→保存。リーダーをつないでないとNO NAMEは出ない。フィラメントの色は白・黒・グレー・ベージュ。白フィラメントの乾燥はベッド50℃+段ボール箱で5時間。\n実測: クレオス塗料瓶は直径45mm。わかばの箱は85.3×54.7×21.6mm。ランプの首53.7mm。エアブラシのパイプ外径13.0mm。iPad厚み6.3mm、カードリーダー9.9mm。釣り糸スプールの中心穴18.0mm。超音波洗浄機の槽は内幅75mm・深さ40mm。寸切りボルトはM8。コーヒー豆は21g基準、ベトナム豆のコクが好き、ハリオV60。\nブランド: GORILLA 💗 WORKS（間にハート）、MGK COFFEE SLOW BAR、GORILLA SLOW CAFE、GORILLA FARM、GORILLA MEDAKA。製品にゴリラの刻印、コースターは番号入り。\n進行中: ペットボトルからフィラメントを作る機械、RC漁船（LED・廃材の木）、塗料は超音波洗浄機で混ぜる。夢は伊勢志摩の阿児町で古民家工房と店。\n禁止: 黙って買い物しない。値下げ返金は報告だけ。長い説明をしない、結論と次の一手を先に言う。";
+
+      var KEY_NAME = "fran_key";
+      var HIST_NAME = "fran_history";
+      var MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+      var MAX_TURNS_SENT = 20;
+      var MAX_STORED = 200;
+
+      var chatEl = document.getElementById("chat");
+      var inputEl = document.getElementById("msgInput");
+      var sendBtn = document.getElementById("sendBtn");
+      var settingsEl = document.getElementById("settings");
+      var keyInput = document.getElementById("keyInput");
+      var keyMsg = document.getElementById("keyMsg");
+      var noKeyNote = document.getElementById("noKeyNote");
+
+      var chatLog = loadHistory();
+      var sending = false;
+
+      function getKey() {
+        try { return localStorage.getItem(KEY_NAME) || ""; } catch (e) { return ""; }
+      }
+      function loadHistory() {
+        try {
+          var raw = localStorage.getItem(HIST_NAME);
+          if (!raw) return [];
+          var arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function saveHistory() {
+        try {
+          if (chatLog.length > MAX_STORED) chatLog = chatLog.slice(chatLog.length - MAX_STORED);
+          localStorage.setItem(HIST_NAME, JSON.stringify(chatLog));
+        } catch (e) { /* 保存できなくても会話は続ける */ }
+      }
+
+      function addBubble(role, text, extraClass) {
+        var row = document.createElement("div");
+        row.className = "row " + role + (extraClass ? " " + extraClass : "");
+        var b = document.createElement("div");
+        b.className = "bubble";
+        b.textContent = text;
+        row.appendChild(b);
+        chatEl.appendChild(row);
+        chatEl.scrollTop = chatEl.scrollHeight;
+        return b;
+      }
+
+      function renderAll() {
+        chatEl.innerHTML = "";
+        if (chatLog.length === 0) {
+          addBubble("fran", "文ちゃん、フランやで");
+          return;
+        }
+        for (var i = 0; i < chatLog.length; i++) {
+          addBubble(chatLog[i].role === "user" ? "user" : "fran", chatLog[i].text);
+        }
+      }
+
+      function buildContents() {
+        // chatLog には送信済みの最新メッセージまで入っている前提で組み立てる
+        var items = chatLog.slice();
+        // 直近のターンを残す
+        var turns = [];
+        var count = 0;
+        for (var i = items.length - 1; i >= 0 && count < MAX_TURNS_SENT; i--) {
+          turns.unshift(items[i]);
+          if (items[i].role === "user") count++;
+        }
+        // 先頭が model だと API が嫌がるので、最初の user まで落とす
+        while (turns.length && turns[0].role !== "user") turns.shift();
+        return turns.map(function (m) {
+          return { role: m.role === "user" ? "user" : "model", parts: [{ text: m.text }] };
+        });
+      }
+
+      function send() {
+        if (sending) return;
+        var text = inputEl.value.trim();
+        if (!text) return;
+        var key = getKey();
+        if (!key) {
+          settingsEl.classList.add("open");
+          noKeyNote.hidden = false;
+          addBubble("fran", "文ちゃん、鍵の設定がまだやで。上の「鍵の設定」から鍵を入れてな。", "error");
+          return;
+        }
+        inputEl.value = "";
+        autoGrow();
+        chatLog.push({ role: "user", text: text });
+        saveHistory();
+        addBubble("user", text);
+
+        sending = true;
+        sendBtn.disabled = true;
+        var thinking = addBubble("fran", "考え中やで…", "thinking");
+
+        fetch(MODEL_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM }] },
+            contents: buildContents()
+          })
+        })
+        .then(function (res) {
+          return res.text().then(function (body) {
+            return { ok: res.ok, status: res.status, body: body };
+          });
+        })
+        .then(function (r) {
+          thinking.parentNode.removeChild(thinking);
+          if (!r.ok) {
+            var msg = r.body;
+            try {
+              var j = JSON.parse(r.body);
+              if (j && j.error && j.error.message) msg = j.error.message;
+            } catch (e) { /* そのまま出す */ }
+            addBubble("fran", "文ちゃん、あかんかったわ。エラーやで：\n" + msg, "error");
+            return;
+          }
+          var data = JSON.parse(r.body);
+          var parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+          var reply = "";
+          if (parts) {
+            for (var i = 0; i < parts.length; i++) { if (parts[i].text) reply += parts[i].text; }
+          }
+          reply = reply.trim();
+          if (!reply) {
+            addBubble("fran", "文ちゃん、返事が空やったわ。もう一回言うてみて。", "error");
+            return;
+          }
+          chatLog.push({ role: "model", text: reply });
+          saveHistory();
+          addBubble("fran", reply);
+        })
+        .catch(function (err) {
+          thinking.parentNode.removeChild(thinking);
+          addBubble("fran", "文ちゃん、通信があかんかったわ。エラーやで：\n" + (err && err.message ? err.message : err), "error");
+        })
+        .finally(function () {
+          sending = false;
+          sendBtn.disabled = false;
+          inputEl.focus();
+        });
+      }
+
+      function autoGrow() {
+        inputEl.style.height = "auto";
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+      }
+
+      // ---------- Settings ----------
+      document.getElementById("keyBtn").addEventListener("click", function () {
+        settingsEl.classList.toggle("open");
+        if (settingsEl.classList.contains("open")) {
+          keyInput.value = getKey();
+          keyMsg.textContent = "";
+        }
+      });
+      document.getElementById("saveKey").addEventListener("click", function () {
+        var v = keyInput.value.trim();
+        if (!v) {
+          keyMsg.textContent = "文ちゃん、鍵が空やで。貼ってから押してな。";
+          return;
+        }
+        try { localStorage.setItem(KEY_NAME, v); } catch (e) { /* noop */ }
+        noKeyNote.hidden = true;
+        keyMsg.textContent = "文ちゃん、鍵を保存したで。もう話せるわ。";
+        setTimeout(function () { settingsEl.classList.remove("open"); }, 900);
+      });
+      document.getElementById("clearBtn").addEventListener("click", function () {
+        chatLog = [];
+        saveHistory();
+        renderAll();
+        keyMsg.textContent = "文ちゃん、履歴は全部消したで。";
+      });
+
+      // ---------- Input ----------
+      sendBtn.addEventListener("click", send);
+      inputEl.addEventListener("input", autoGrow);
+      inputEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+          e.preventDefault();
+          send();
+        }
+      });
+
+      // ---------- Start ----------
+      renderAll();
+      if (!getKey()) {
+        settingsEl.classList.add("open");
+        noKeyNote.hidden = false;
+      }
+    </script>
+  </body>
+</html>
