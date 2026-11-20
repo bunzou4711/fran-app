@@ -347,47 +347,70 @@
         sendBtn.disabled = true;
         var thinking = addBubble("fran", "考え中やで…", "thinking");
 
-        fetch(MODEL_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM }] },
-            contents: buildContents()
+        var MAX_RETRIES = 3;
+        var RETRY_WAIT_MS = 5000;
+
+        function isRetryable(status, bodyText) {
+          if (status === 503 || status === 429) return true;
+          if (bodyText && bodyText.toLowerCase().indexOf("high demand") !== -1) return true;
+          return false;
+        }
+        function waitRetry() {
+          return new Promise(function (resolve) { setTimeout(resolve, RETRY_WAIT_MS); });
+        }
+        function removeThinking() {
+          if (thinking && thinking.parentNode) thinking.parentNode.removeChild(thinking);
+        }
+        function doRequest() {
+          return fetch(MODEL_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: SYSTEM }] },
+              contents: buildContents()
+            })
           })
-        })
-        .then(function (res) {
-          return res.text().then(function (body) {
-            return { ok: res.ok, status: res.status, body: body };
+          .then(function (res) {
+            return res.text().then(function (body) {
+              return { ok: res.ok, status: res.status, body: body };
+            });
           });
-        })
-        .then(function (r) {
-          thinking.parentNode.removeChild(thinking);
-          if (!r.ok) {
-            var msg = r.body;
-            try {
-              var j = JSON.parse(r.body);
-              if (j && j.error && j.error.message) msg = j.error.message;
-            } catch (e) { /* そのまま出す */ }
-            addBubble("fran", "文ちゃん、あかんかったわ。エラーやで：\n" + msg, "error");
-            return;
-          }
-          var data = JSON.parse(r.body);
-          var parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-          var reply = "";
-          if (parts) {
-            for (var i = 0; i < parts.length; i++) { if (parts[i].text) reply += parts[i].text; }
-          }
-          reply = reply.trim();
-          if (!reply) {
-            addBubble("fran", "文ちゃん、返事が空やったわ。もう一回言うてみて。", "error");
-            return;
-          }
-          chatLog.push({ role: "model", text: reply });
-          saveHistory();
-          addBubble("fran", reply);
-        })
+        }
+        function attempt(retriesDone) {
+          return doRequest().then(function (r) {
+            if (!r.ok && isRetryable(r.status, r.body) && retriesDone < MAX_RETRIES) {
+              return waitRetry().then(function () { return attempt(retriesDone + 1); });
+            }
+            removeThinking();
+            if (!r.ok) {
+              var msg = r.body;
+              try {
+                var j = JSON.parse(r.body);
+                if (j && j.error && j.error.message) msg = j.error.message;
+              } catch (e) { /* そのまま出す */ }
+              addBubble("fran", "文ちゃん、あかんかったわ。エラーやで：\n" + msg, "error");
+              return;
+            }
+            var data = JSON.parse(r.body);
+            var parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+            var reply = "";
+            if (parts) {
+              for (var i = 0; i < parts.length; i++) { if (parts[i].text) reply += parts[i].text; }
+            }
+            reply = reply.trim();
+            if (!reply) {
+              addBubble("fran", "文ちゃん、返事が空やったわ。もう一回言うてみて。", "error");
+              return;
+            }
+            chatLog.push({ role: "model", text: reply });
+            saveHistory();
+            addBubble("fran", reply);
+          });
+        }
+
+        attempt(0)
         .catch(function (err) {
-          thinking.parentNode.removeChild(thinking);
+          removeThinking();
           addBubble("fran", "文ちゃん、通信があかんかったわ。エラーやで：\n" + (err && err.message ? err.message : err), "error");
         })
         .finally(function () {
