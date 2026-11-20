@@ -253,7 +253,8 @@
 
       var KEY_NAME = "fran_key";
       var HIST_NAME = "fran_history";
-      var MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+      var MODELS = ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
+      var MODEL_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
       var MAX_TURNS_SENT = 20;
       var MAX_STORED = 200;
 
@@ -347,12 +348,17 @@
         sendBtn.disabled = true;
         var thinking = addBubble("fran", "考え中やで…", "thinking");
 
-        var MAX_RETRIES = 3;
+        var RETRIES_PER_MODEL = 1;
         var RETRY_WAIT_MS = 5000;
 
         function isRetryable(status, bodyText) {
-          if (status === 503 || status === 429) return true;
-          if (bodyText && bodyText.toLowerCase().indexOf("high demand") !== -1) return true;
+          if (status === 503 || status === 429 || status === 404) return true;
+          if (bodyText) {
+            var t = bodyText.toLowerCase();
+            if (t.indexOf("high demand") !== -1) return true;
+            if (t.indexOf("no longer available") !== -1) return true;
+            if (t.indexOf("not found") !== -1) return true;
+          }
           return false;
         }
         function waitRetry() {
@@ -361,8 +367,8 @@
         function removeThinking() {
           if (thinking && thinking.parentNode) thinking.parentNode.removeChild(thinking);
         }
-        function doRequest() {
-          return fetch(MODEL_URL, {
+        function doRequest(model) {
+          return fetch(MODEL_API_BASE + model + ":generateContent", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": key },
             body: JSON.stringify({
@@ -376,10 +382,16 @@
             });
           });
         }
-        function attempt(retriesDone) {
-          return doRequest().then(function (r) {
-            if (!r.ok && isRetryable(r.status, r.body) && retriesDone < MAX_RETRIES) {
-              return waitRetry().then(function () { return attempt(retriesDone + 1); });
+        function attempt(modelIndex, retriesDone) {
+          return doRequest(MODELS[modelIndex]).then(function (r) {
+            if (!r.ok && isRetryable(r.status, r.body)) {
+              // 同じモデルで1回だけ再試行し、それでも失敗したら次のモデルへ進む
+              if (retriesDone < RETRIES_PER_MODEL) {
+                return waitRetry().then(function () { return attempt(modelIndex, retriesDone + 1); });
+              }
+              if (modelIndex < MODELS.length - 1) {
+                return attempt(modelIndex + 1, 0);
+              }
             }
             removeThinking();
             if (!r.ok) {
@@ -408,7 +420,7 @@
           });
         }
 
-        attempt(0)
+        attempt(0, 0)
         .catch(function (err) {
           removeThinking();
           addBubble("fran", "文ちゃん、通信があかんかったわ。エラーやで：\n" + (err && err.message ? err.message : err), "error");
