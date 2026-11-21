@@ -253,7 +253,7 @@
 
       var KEY_NAME = "fran_key";
       var HIST_NAME = "fran_history";
-      var MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-hydrogen", "gemma-4-31b-it"];
+      var MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-4-hydrogen", "gemma-4-31b-it"];
       var MODEL_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
       var MAX_TURNS_SENT = 20;
       var MAX_STORED = 200;
@@ -368,18 +368,25 @@
           if (thinking && thinking.parentNode) thinking.parentNode.removeChild(thinking);
         }
         function doRequest(model) {
+          var controller = ("AbortController" in window) ? new AbortController() : null;
+          var timer = controller ? setTimeout(function () { controller.abort(); }, 30000) : null;
           return fetch(MODEL_API_BASE + model + ":generateContent", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+            signal: controller ? controller.signal : undefined,
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: SYSTEM }] },
               contents: buildContents()
             })
           })
           .then(function (res) {
+            if (timer) clearTimeout(timer);
             return res.text().then(function (body) {
               return { ok: res.ok, status: res.status, body: body };
             });
+          }, function (err) {
+            if (timer) clearTimeout(timer);
+            throw err;
           });
         }
         function attempt(modelIndex, retriesDone) {
@@ -417,6 +424,12 @@
             chatLog.push({ role: "model", text: reply });
             saveHistory();
             addBubble("fran", reply);
+          }, function (err) {
+            // 通信エラー（Load failed・タイムアウト等）は次のモデルで試し直す
+            if (modelIndex < MODELS.length - 1) {
+              return attempt(modelIndex + 1, 0);
+            }
+            throw err;
           });
         }
 
